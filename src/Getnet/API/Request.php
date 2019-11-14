@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: brunopaz
@@ -14,8 +15,8 @@ use \Exception;
  * Class Request
  * @package Getnet\API
  */
-class Request
-{
+class Request {
+
     /**
      * Base url from api
      *
@@ -24,11 +25,19 @@ class Request
     private $baseUrl = '';
 
     /**
+     * Path certificate pem
+     *
+     * @var string
+     */
+    private $certificate = '';
+
+    /**
      * Request constructor.
      * @param Getnet $credentials
      */
-    function __construct(Getnet $credentials)
-    {
+    function __construct(Getnet $credentials) {
+
+        $this->certificate = $credentials->getCertificate();
 
         if ($credentials->getEnv() == "PRODUCTION")
             $this->baseUrl = 'https://api.getnet.com.br';
@@ -44,26 +53,24 @@ class Request
             return $this->auth($credentials);
     }
 
-
     /**
      * @param Getnet $credentials
      * @return Getnet
      * @throws Exception
      */
-    function auth(Getnet $credentials)
-    {
+    function auth(Getnet $credentials) {
         $url_path = "/auth/oauth/v2/token";
 
         $params = [
-            "scope"      => "oob",
+            "scope" => "oob",
             "grant_type" => "client_credentials"
         ];
 
         $querystring = http_build_query($params);
 
-        try{
+        try {
             $response = $this->send($credentials, $url_path, 'AUTH', $querystring);
-        }catch (Exception $e){
+        } catch (Exception $e) {
             throw new Exception($e->getMessage(), 100);
         }
 
@@ -79,29 +86,33 @@ class Request
      * @return mixed
      * @throws \Exception
      */
-    private function send(Getnet $credentials, $url_path, $method, $json = NULL)
-    {
+    private function send(Getnet $credentials, $url_path, $method, $json = NULL) {
         $curl = curl_init($this->getFullUrl($url_path));
 
         $defaultCurlOptions = array(
             CURLOPT_CONNECTTIMEOUT => 60,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 60,
-            CURLOPT_HTTPHEADER     => array('Content-Type: application/json; charset=utf-8'),
+            CURLOPT_TIMEOUT => 60,
+            CURLOPT_HTTPHEADER => array('Content-Type: application/json; charset=utf-8'),
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_SSL_VERIFYPEER => 0
         );
 
+        if (!empty($this->certificate)) {
+            $defaultCurlOptions[CURLOPT_SSL_VERIFYPEER] = 1;
+            $defaultCurlOptions[CURLOPT_CAPATH] = $this->certificate;
+        }
+
         if ($method == 'POST') {
-            $defaultCurlOptions[ CURLOPT_HTTPHEADER ][] = 'Authorization: Bearer ' . $credentials->getAuthorizationToken();
+            $defaultCurlOptions[CURLOPT_HTTPHEADER][] = 'Authorization: Bearer ' . $credentials->getAuthorizationToken();
             curl_setopt($curl, CURLOPT_POST, 1);
             curl_setopt($curl, CURLOPT_POSTFIELDS, $json);
         } elseif ($method == 'PUT') {
-            $defaultCurlOptions[ CURLOPT_HTTPHEADER ][] = 'Authorization: Bearer ' . $credentials->getAuthorizationToken();
+            $defaultCurlOptions[CURLOPT_HTTPHEADER][] = 'Authorization: Bearer ' . $credentials->getAuthorizationToken();
             curl_setopt($curl, CURLOPT_CUSTOMREQUEST, 'PUT');
             curl_setopt($curl, CURLOPT_POSTFIELDS, $json);
         } elseif ($method == 'AUTH') {
-            $defaultCurlOptions[ CURLOPT_HTTPHEADER ][0] = 'application/x-www-form-urlencoded';
+            $defaultCurlOptions[CURLOPT_HTTPHEADER][0] = 'application/x-www-form-urlencoded';
             curl_setopt($curl, CURLOPT_USERPWD, $credentials->getClientId() . ":" . $credentials->getClientSecret());
             curl_setopt($curl, CURLOPT_POST, 1);
             curl_setopt($curl, CURLOPT_POSTFIELDS, $json);
@@ -152,8 +163,7 @@ class Request
      * @param string $url_path
      * @return string $url(config) + $url_path
      */
-    private function getFullUrl($url_path)
-    {
+    private function getFullUrl($url_path) {
         if (stripos($url_path, $this->baseUrl, 0) === 0) {
             return $url_path;
         }
@@ -164,24 +174,20 @@ class Request
     /**
      * @return string
      */
-    public function getBaseUrl()
-    {
+    public function getBaseUrl() {
         return $this->baseUrl;
     }
 
-
     /**
      * @param Getnet $credentials
      * @param $url_path
      * @return mixed
      * @throws Exception
      */
-    function get(Getnet $credentials, $url_path)
-    {
+    function get(Getnet $credentials, $url_path) {
         return $this->send($credentials, $url_path, 'GET');
     }
 
-
     /**
      * @param Getnet $credentials
      * @param $url_path
@@ -189,12 +195,10 @@ class Request
      * @return mixed
      * @throws Exception
      */
-    function post(Getnet $credentials, $url_path, $params)
-    {
+    function post(Getnet $credentials, $url_path, $params) {
         return $this->send($credentials, $url_path, 'POST', $params);
     }
 
-
     /**
      * @param Getnet $credentials
      * @param $url_path
@@ -202,8 +206,7 @@ class Request
      * @return mixed
      * @throws Exception
      */
-    function put(Getnet $credentials, $url_path, $params)
-    {
+    function put(Getnet $credentials, $url_path, $params) {
         return $this->send($credentials, $url_path, 'PUT', $params);
     }
 
